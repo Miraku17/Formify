@@ -1,101 +1,202 @@
-import Image from "next/image";
+'use client'
+import React, { useState } from 'react';
+import { Link2, Download, AlertCircle, FileDown } from 'lucide-react';
 
-export default function Home() {
+const FormScraperUI = () => {
+  const [formLink, setFormLink] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [fileType, setFileType] = useState('pdf');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleDownload = (base64Data, fileName) => {
+    const link = document.createElement('a');
+    link.href = `data:application/${fileType};base64,${base64Data}`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!formLink) {
+      setError('Please enter a Google Form link');
+      return;
+    }
+    if (!fileName) {
+      setError('Please enter a file name');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formLink,
+          fileName,
+          fileType
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to process form');
+      }
+
+      handleDownload(data.data, data.fileName);
+    } catch (error) {
+      setError(error.message || 'An error occurred while processing the form');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="text-black min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Header Section */}
+        <div className="mb-6 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="bg-indigo-600 p-3 rounded-lg">
+              <FileDown size={24} className="text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Google Form Scraper
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Extract form data into PDF or DOCX format
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Main Card */}
+        <div className="bg-white rounded-xl shadow-lg p-8 backdrop-blur-sm bg-opacity-90">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Form Link Input */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Google Form Link
+              </label>
+              <div className="relative group">
+                <div className="absolute left-3 top-3 text-gray-400 group-hover:text-indigo-600 transition-colors">
+                  <Link2 size={16} />
+                </div>
+                <input
+                  type="url"
+                  placeholder="https://docs.google.com/forms/..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 hover:bg-white"
+                  value={formLink}
+                  onChange={(e) => setFormLink(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* File Name Input */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                File Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter file name"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 hover:bg-white"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+              />
+            </div>
+
+            {/* File Type Selection */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Output Format
+              </label>
+              <div className="flex space-x-4 bg-gray-50 p-2 rounded-lg">
+                <label className="relative flex items-center space-x-2 cursor-pointer flex-1">
+                  <input
+                    type="radio"
+                    name="fileType"
+                    value="pdf"
+                    checked={fileType === 'pdf'}
+                    onChange={(e) => setFileType(e.target.value)}
+                    className="hidden"
+                  />
+                  <div className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                    fileType === 'pdf' 
+                      ? 'bg-white shadow-sm text-indigo-600' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                    PDF
+                  </div>
+                </label>
+                <label className="relative flex items-center space-x-2 cursor-pointer flex-1">
+                  <input
+                    type="radio"
+                    name="fileType"
+                    value="docx"
+                    checked={fileType === 'docx'}
+                    onChange={(e) => setFileType(e.target.value)}
+                    className="hidden"
+                  />
+                  <div className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                    fileType === 'docx' 
+                      ? 'bg-white shadow-sm text-indigo-600' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                    DOCX
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">
+                <AlertCircle size={16} />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg text-white font-medium transition-all ${
+                isProcessing 
+                  ? 'bg-indigo-400 cursor-not-allowed' 
+                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  <span>Download Form Data</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          Supported formats: PDF, DOCX • Max file size: 10MB
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default FormScraperUI;

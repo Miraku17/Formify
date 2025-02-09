@@ -1,16 +1,16 @@
-'use client'
-import React, { useState } from 'react';
-import { Link2, Download, AlertCircle, FileDown } from 'lucide-react';
+"use client";
+import React, { useState } from "react";
+import { Link2, Download, AlertCircle, FileDown } from "lucide-react";
 
 const FormScraperUI = () => {
-  const [formLink, setFormLink] = useState('');
-  const [fileName, setFileName] = useState('');
-  const [fileType, setFileType] = useState('pdf');
+  const [formLink, setFormLink] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [fileType, setFileType] = useState("pdf");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleDownload = (base64Data, fileName) => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = `data:application/${fileType};base64,${base64Data}`;
     link.download = fileName;
     document.body.appendChild(link);
@@ -20,41 +20,41 @@ const FormScraperUI = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
+    setError("");
+
     if (!formLink) {
-      setError('Please enter a Google Form link');
+      setError("Please enter a Google Form link");
       return;
     }
     if (!fileName) {
-      setError('Please enter a file name');
+      setError("Please enter a file name");
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      const response = await fetch('/api/scrape', {
-        method: 'POST',
+      const response = await fetch("/api/scrape", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           formLink,
           fileName,
-          fileType
+          fileType,
         }),
       });
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to process form');
+        throw new Error(data.error || "Failed to process form");
       }
 
       handleDownload(data.data, data.fileName);
     } catch (error) {
-      setError(error.message || 'An error occurred while processing the form');
+      setError(error.message || "An error occurred while processing the form");
     } finally {
       setIsProcessing(false);
     }
@@ -125,15 +125,17 @@ const FormScraperUI = () => {
                     type="radio"
                     name="fileType"
                     value="pdf"
-                    checked={fileType === 'pdf'}
+                    checked={fileType === "pdf"}
                     onChange={(e) => setFileType(e.target.value)}
                     className="hidden"
                   />
-                  <div className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
-                    fileType === 'pdf' 
-                      ? 'bg-white shadow-sm text-indigo-600' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}>
+                  <div
+                    className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                      fileType === "pdf"
+                        ? "bg-white shadow-sm text-indigo-600"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
                     PDF
                   </div>
                 </label>
@@ -142,15 +144,17 @@ const FormScraperUI = () => {
                     type="radio"
                     name="fileType"
                     value="docx"
-                    checked={fileType === 'docx'}
+                    checked={fileType === "docx"}
                     onChange={(e) => setFileType(e.target.value)}
                     className="hidden"
                   />
-                  <div className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
-                    fileType === 'docx' 
-                      ? 'bg-white shadow-sm text-indigo-600' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}>
+                  <div
+                    className={`w-full py-2 px-4 rounded-lg text-center text-sm font-medium transition-all ${
+                      fileType === "docx"
+                        ? "bg-white shadow-sm text-indigo-600"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
                     DOCX
                   </div>
                 </label>
@@ -170,9 +174,9 @@ const FormScraperUI = () => {
               type="submit"
               disabled={isProcessing}
               className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg text-white font-medium transition-all ${
-                isProcessing 
-                  ? 'bg-indigo-400 cursor-not-allowed' 
-                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                isProcessing
+                  ? "bg-indigo-400 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
               }`}
             >
               {isProcessing ? (
@@ -192,7 +196,8 @@ const FormScraperUI = () => {
 
         {/* Footer */}
         <div className="mt-6 text-center text-sm text-gray-500">
-          Supported formats: PDF, DOCX • Max file size: 10MB
+          Note: Google Form must be public/accessible without sign-in for
+          question scraping
         </div>
       </div>
     </div>

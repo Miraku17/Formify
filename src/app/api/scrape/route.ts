@@ -30,9 +30,18 @@ async function generatePDF(qaItems, formTitle) {
     // Add questions and answers
     qaItems.forEach((item, index) => {
       // Question
-      doc.fontSize(14)
-         .text(`Question ${index + 1}:`, { continued: false })
-         .moveDown(0.5)
+      doc.fontSize(14);
+      
+      // Apply red color if question was answered incorrectly
+      if (item.isIncorrect) {
+        doc.fillColor('red')
+           .text(`Question ${index + 1}: [WRONG ANSWER]`, { continued: false });
+      } else {
+        doc.fillColor('black')
+           .text(`Question ${index + 1}:`, { continued: false });
+      }
+      
+      doc.moveDown(0.5)
          .fontSize(12)
          .text(item.question)
          .moveDown(1);
@@ -40,18 +49,26 @@ async function generatePDF(qaItems, formTitle) {
       // Answers
       item.answers.forEach((answer, ansIndex) => {
         doc.fontSize(12);
+        
+        // Choose color based on correct/incorrect
         if (answer.isCorrect) {
-          doc.font('Times-Bold');
+          doc.fillColor('green')
+             .font('Times-Bold');
         } else {
-          doc.font('Times-Roman');
+          doc.fillColor('black')
+             .font('Times-Roman');
         }
+        
         doc.text(`${indexToLetter(ansIndex)}. ${answer.text}`).moveDown(0.5);
       });
+      
+      // Reset text color back to black for feedback
+      doc.fillColor('black')
+         .font('Times-Roman');
 
       // Feedback
       if (item.feedback) {
-        doc.font('Times-Italic')
-           .fontSize(12)
+        doc.fontSize(12)
            .moveDown(0.5)
            .text('Feedback:', { continued: false })
            .moveDown(0.5)
@@ -67,6 +84,14 @@ async function generatePDF(qaItems, formTitle) {
        .fontSize(12)
        .moveDown(1)
        .text(`Total Questions: ${qaItems.length}`);
+       
+    // Add count of incorrect answers
+    const incorrectCount = qaItems.filter(item => item.isIncorrect).length;
+    if (incorrectCount > 0) {
+      doc.moveDown(0.5)
+         .fillColor('red')
+         .text(`Incorrect Answers: ${incorrectCount}`);
+    }
 
     doc.end();
   });
@@ -82,17 +107,25 @@ export async function POST(req) {
       }
     });
     
-    const $ = cheerio.load(response.data);
+    // Get the raw HTML as text
+    const htmlText = response.data;
+    
+    const $ = cheerio.load(htmlText);
     
     const formTitle = $('.F9yp7e').text().trim() || 'Form Questions and Answers';
     
     let qaItems = [];
     
+    // Process each question
     $('.OxAavc').each((index, element) => {
+      // Get the HTML of this question element as text
+      const questionHtml = $.html(element);
+      
       const question = $(element).find('span.M7eMe').text().trim();
       let answers = [];
       let feedback = '';
       
+      // Extract feedback if available
       const feedbackElement = $(element).find('.PcXV5e');
       if (feedbackElement.length > 0) {
         const contentDiv = feedbackElement.find('.sIQxvc');
@@ -110,9 +143,15 @@ export async function POST(req) {
         }
       }
       
+      // Check if this question contains the wrong answer marker
+      // Simple text-based approach: if the HTML contains both 'zS667' and 'Mali', it's wrong
+      const isIncorrect = questionHtml.includes('zS667') && questionHtml.includes('Mali');
+      
+      // Process answer options
       $(element).find('.aDTYNe.snByac').each((i, answerElem) => {
         const answerText = $(answerElem).text().trim();
         const isCorrect = $(answerElem).closest('.yUJIWb').find('.fKfAyc').text().trim() === 'Tama';
+        
         answers.push({
           text: answerText,
           isCorrect: isCorrect
@@ -123,7 +162,10 @@ export async function POST(req) {
         qaItems.push({
           question: question,
           answers: answers,
-          feedback: feedback
+          feedback: feedback,
+          isIncorrect: isIncorrect,
+          // Add raw HTML for debugging if needed
+          debugHtml: questionHtml.includes('zS667')
         });
       }
     });
@@ -177,10 +219,21 @@ function generateDocumentContent(qaItems, formTitle) {
   ];
 
   qaItems.forEach((item, index) => {
-    // Add Question
+    // Question title with WRONG marker if incorrect
+    const questionTitle = item.isIncorrect 
+      ? `Question ${index + 1}: [WRONG ANSWER]` 
+      : `Question ${index + 1}:`;
+      
     children.push(
       new Paragraph({
-        text: `Question ${index + 1}:`,
+        children: [
+          new TextRun({
+            text: questionTitle,
+            size: 28,
+            bold: true,
+            color: item.isIncorrect ? "FF0000" : "000000"
+          })
+        ],
         heading: HeadingLevel.HEADING_2,
         spacing: {
           before: 400,
@@ -191,7 +244,8 @@ function generateDocumentContent(qaItems, formTitle) {
         children: [
           new TextRun({
             text: item.question,
-            size: 24
+            size: 24,
+            color: item.isIncorrect ? "FF0000" : "000000"
           })
         ],
         spacing: {
@@ -200,7 +254,7 @@ function generateDocumentContent(qaItems, formTitle) {
       })
     );
 
-    // Add Answers with letters
+    // Add Answers
     item.answers.forEach((answer, ansIndex) => {
       children.push(
         new Paragraph({
@@ -208,6 +262,7 @@ function generateDocumentContent(qaItems, formTitle) {
             new TextRun({
               text: `${indexToLetter(ansIndex)}. ${answer.text}`,
               bold: answer.isCorrect,
+              color: answer.isCorrect ? "008000" : "000000", // Green for correct, black for others
               size: 24
             })
           ],
@@ -222,7 +277,14 @@ function generateDocumentContent(qaItems, formTitle) {
     if (item.feedback) {
       children.push(
         new Paragraph({
-          text: 'Feedback:',
+          children: [
+            new TextRun({
+              text: "Feedback:",
+              size: 24,
+              bold: true,
+              color: "000000"
+            })
+          ],
           heading: HeadingLevel.HEADING_3,
           spacing: {
             before: 200,
@@ -240,7 +302,8 @@ function generateDocumentContent(qaItems, formTitle) {
                 new TextRun({
                   text: line.trim(),
                   italics: true,
-                  size: 24
+                  size: 24,
+                  color: "000000"
                 })
               ],
               spacing: {
@@ -251,8 +314,28 @@ function generateDocumentContent(qaItems, formTitle) {
         }
       });
     }
+    
+    // Add debug info for troubleshooting if needed
+    if (item.debugHtml) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "[Debug: zS667 found]",
+              size: 16,
+              color: "808080"
+            })
+          ],
+          spacing: {
+            before: 100,
+            after: 100
+          }
+        })
+      );
+    }
   });
 
+  // Add summary
   children.push(
     new Paragraph({
       children: [
@@ -263,10 +346,31 @@ function generateDocumentContent(qaItems, formTitle) {
         })
       ],
       spacing: {
-        before: 400
+        before: 400,
+        after: 200
       }
     })
   );
+  
+  // Add count of incorrect answers
+  const incorrectCount = qaItems.filter(item => item.isIncorrect).length;
+  if (incorrectCount > 0) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Incorrect Answers: ${incorrectCount}`,
+            size: 24,
+            bold: true,
+            color: "FF0000"
+          })
+        ],
+        spacing: {
+          before: 200
+        }
+      })
+    );
+  }
 
   return children;
 }

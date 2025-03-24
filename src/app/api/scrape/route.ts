@@ -118,12 +118,10 @@ export async function POST(req) {
     
     // Process each question
     $('.OxAavc').each((index, element) => {
-      // Get the HTML of this question element as text
-      const questionHtml = $.html(element);
-      
       const question = $(element).find('span.M7eMe').text().trim();
       let answers = [];
       let feedback = '';
+      let isIncorrect = false;
       
       // Extract feedback if available
       const feedbackElement = $(element).find('.PcXV5e');
@@ -143,14 +141,40 @@ export async function POST(req) {
         }
       }
       
-      // Check if this question contains the wrong answer marker
-      // Simple text-based approach: if the HTML contains both 'zS667' and 'Mali', it's wrong
-      const isIncorrect = questionHtml.includes('zS667') && questionHtml.includes('Mali');
+      // Check if this question contains the wrong answer marker - more reliable method
+      // Looking for the "wrong" indicator in multiple ways
+      isIncorrect = $(element).find('.zS667, .jk3Brf, .NW3tIe').length > 0;
       
-      // Process answer options
-      $(element).find('.aDTYNe.snByac').each((i, answerElem) => {
+      // Process answer options - improved selector logic
+      $(element).find('.aDTYNe, .nWQGrd, .ulDsOb').each((i, answerElem) => {
         const answerText = $(answerElem).text().trim();
-        const isCorrect = $(answerElem).closest('.yUJIWb').find('.fKfAyc').text().trim() === 'Tama';
+        
+        // Multiple ways to detect correct answers
+        // 1. Check for visual indicators (background color, checkmarks, etc.)
+        // 2. Look for specific class combinations that indicate correct answers
+        // 3. Check parent elements for correct answer indicators
+        
+        let isCorrect = false;
+        
+        // Method 1: Check for specific correct answer classes
+        isCorrect = $(answerElem).closest('.docssharedWizToggleLabeledTitleContainer, .nNVOd, .yUJIWb').find('.SG0AAe, .Zmo8Cf, .fKfAyc, .F7LiGb').length > 0;
+        
+        // Method 2: Check for green checkmark or similar indicators
+        if (!isCorrect) {
+          isCorrect = $(answerElem).closest('.docssharedWizToggleLabeledContent').find('img[src*="correct"], img[alt*="correct"], .ceNt5e, .M7eMe').length > 0;
+        }
+        
+        // Method 3: Check for correct answer styling
+        if (!isCorrect) {
+          const parent = $(answerElem).closest('.docssharedWizToggleLabeledPrimaryText, .nWQGrd');
+          isCorrect = parent.hasClass('EzyPc') || parent.hasClass('IBlNwd') || parent.find('.GzijAd').length > 0;
+        }
+        
+        // Add in case we find specific text indicators like "Correct" in various languages
+        const parentText = $(answerElem).closest('.yUJIWb, .oyXaNc').text().toLowerCase();
+        if (parentText.includes('correct') || parentText.includes('tama') || parentText.includes('right') || parentText.includes('good')) {
+          isCorrect = true;
+        }
         
         answers.push({
           text: answerText,
@@ -158,14 +182,24 @@ export async function POST(req) {
         });
       });
       
+      // If no correct answers were detected but we're showing a scored form
+      // Mark the first answer with a green dot or checkmark as correct
+      if (answers.length > 0 && !answers.some(a => a.isCorrect)) {
+        // Look for answers with visual indicators
+        $(element).find('.docssharedWizToggleLabeledLabelWrapper, .oCjZyb, .SG0AAe').each((i, elem) => {
+          const hasIndicator = $(elem).find('.F7LiGb, .Zmo8Cf, img[src*="check"], .ceNt5e').length > 0;
+          if (hasIndicator && i < answers.length) {
+            answers[i].isCorrect = true;
+          }
+        });
+      }
+      
       if (question && answers.length > 0) {
         qaItems.push({
           question: question,
           answers: answers,
           feedback: feedback,
           isIncorrect: isIncorrect,
-          // Add raw HTML for debugging if needed
-          debugHtml: questionHtml.includes('zS667')
         });
       }
     });
@@ -313,25 +347,6 @@ function generateDocumentContent(qaItems, formTitle) {
           );
         }
       });
-    }
-    
-    // Add debug info for troubleshooting if needed
-    if (item.debugHtml) {
-      children.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "[Debug: zS667 found]",
-              size: 16,
-              color: "808080"
-            })
-          ],
-          spacing: {
-            before: 100,
-            after: 100
-          }
-        })
-      );
     }
   });
 

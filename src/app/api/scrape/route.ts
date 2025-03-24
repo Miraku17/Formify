@@ -118,10 +118,12 @@ export async function POST(req) {
     
     // Process each question
     $('.OxAavc').each((index, element) => {
+      // Get the HTML of this question element as text
+      const questionHtml = $.html(element);
+      
       const question = $(element).find('span.M7eMe').text().trim();
       let answers = [];
       let feedback = '';
-      let isIncorrect = false;
       
       // Extract feedback if available
       const feedbackElement = $(element).find('.PcXV5e');
@@ -141,40 +143,35 @@ export async function POST(req) {
         }
       }
       
-      // Check if this question contains the wrong answer marker - more reliable method
-      // Looking for the "wrong" indicator in multiple ways
-      isIncorrect = $(element).find('.zS667, .jk3Brf, .NW3tIe').length > 0;
+      // Check if this question contains the wrong answer marker
+      // Look for both English and Filipino wrong markers
+      const isIncorrect = (
+        // Filipino version
+        (questionHtml.includes('zS667') && questionHtml.includes('Mali')) ||
+        // English version
+        (questionHtml.includes('zS667') && questionHtml.includes('Wrong')) ||
+        // Additional classes that indicate wrong answers
+        $(element).find('.NW3tIe, .zS667, .jgvuAb').length > 0
+      );
       
-      // Process answer options - improved selector logic
-      $(element).find('.aDTYNe, .nWQGrd, .ulDsOb').each((i, answerElem) => {
+      // Process answer options
+      $(element).find('.aDTYNe.snByac, .nWQGrd').each((i, answerElem) => {
         const answerText = $(answerElem).text().trim();
         
-        // Multiple ways to detect correct answers
-        // 1. Check for visual indicators (background color, checkmarks, etc.)
-        // 2. Look for specific class combinations that indicate correct answers
-        // 3. Check parent elements for correct answer indicators
+        // Look for correct answer markers in multiple languages
+        const correctIndicator = $(answerElem).closest('.yUJIWb').find('.fKfAyc');
+        const correctText = correctIndicator.text().trim().toLowerCase();
         
-        let isCorrect = false;
-        
-        // Method 1: Check for specific correct answer classes
-        isCorrect = $(answerElem).closest('.docssharedWizToggleLabeledTitleContainer, .nNVOd, .yUJIWb').find('.SG0AAe, .Zmo8Cf, .fKfAyc, .F7LiGb').length > 0;
-        
-        // Method 2: Check for green checkmark or similar indicators
-        if (!isCorrect) {
-          isCorrect = $(answerElem).closest('.docssharedWizToggleLabeledContent').find('img[src*="correct"], img[alt*="correct"], .ceNt5e, .M7eMe').length > 0;
-        }
-        
-        // Method 3: Check for correct answer styling
-        if (!isCorrect) {
-          const parent = $(answerElem).closest('.docssharedWizToggleLabeledPrimaryText, .nWQGrd');
-          isCorrect = parent.hasClass('EzyPc') || parent.hasClass('IBlNwd') || parent.find('.GzijAd').length > 0;
-        }
-        
-        // Add in case we find specific text indicators like "Correct" in various languages
-        const parentText = $(answerElem).closest('.yUJIWb, .oyXaNc').text().toLowerCase();
-        if (parentText.includes('correct') || parentText.includes('tama') || parentText.includes('right') || parentText.includes('good')) {
-          isCorrect = true;
-        }
+        // Check for "Tama" (Filipino) or "Correct" (English) or other indicators
+        const isCorrect = (
+          correctText === 'tama' || 
+          correctText === 'correct' || 
+          correctText === 'right' ||
+          // Visual indicators (green checkmark, etc.)
+          $(answerElem).closest('.docssharedWizToggleLabeledContent, .yUJIWb').find('.SG0AAe, .F7LiGb, .uHMk6b').length > 0 ||
+          // Check for stylistic indicators of correct answers (background color, etc.)
+          $(answerElem).closest('.docssharedWizToggleLabeledPrimaryText, .nWQGrd').hasClass('EzyPc')
+        );
         
         answers.push({
           text: answerText,
@@ -182,14 +179,19 @@ export async function POST(req) {
         });
       });
       
-      // If no correct answers were detected but we're showing a scored form
-      // Mark the first answer with a green dot or checkmark as correct
+      // If we didn't find any correct answers but this is a quiz form,
+      // try a fallback approach to identify correct answers
       if (answers.length > 0 && !answers.some(a => a.isCorrect)) {
-        // Look for answers with visual indicators
-        $(element).find('.docssharedWizToggleLabeledLabelWrapper, .oCjZyb, .SG0AAe').each((i, elem) => {
-          const hasIndicator = $(elem).find('.F7LiGb, .Zmo8Cf, img[src*="check"], .ceNt5e').length > 0;
-          if (hasIndicator && i < answers.length) {
-            answers[i].isCorrect = true;
+        // Look for answers with green color or check indicators
+        const correctIndicators = $(element).find('.SG0AAe, .F7LiGb, .uHMk6b');
+        correctIndicators.each((i, indicator) => {
+          // Find the closest answer to this indicator
+          const closestAnswer = $(indicator).closest('.freebirdFormviewerViewItemsRadioChoice, .freebirdFormviewerViewItemsCheckboxChoice');
+          const answerIndex = closestAnswer.index();
+          
+          // If we found a valid index, mark that answer as correct
+          if (answerIndex >= 0 && answerIndex < answers.length) {
+            answers[answerIndex].isCorrect = true;
           }
         });
       }
